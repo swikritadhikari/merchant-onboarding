@@ -1,0 +1,15 @@
+export enum ErrorCode {
+  BadRequest = 'BAD_REQUEST',
+  ValidationFailed = 'VALIDATION_FAILED',
+  Unauthorized = 'UNAUTHORIZED',
+  Forbidden = 'FORBIDDEN',
+  NotFound = 'NOT_FOUND',
+  Conflict = 'CONFLICT',
+  InvalidStateTransition = 'INVALID_STATE_TRANSITION',
+  PayloadTooLarge = 'PAYLOAD_TOO_LARGE',
+  UnsupportedMediaType = 'UNSUPPORTED_MEDIA_TYPE',
+  BusinessRuleViolation = 'BUSINESS_RULE_VIOLATION',
+  RateLimited = 'RATE_LIMITED',
+  InternalError = 'INTERNAL_ERROR',
+  ServiceUnavailable = 'SERVICE_UNAVAILABLE',
+}

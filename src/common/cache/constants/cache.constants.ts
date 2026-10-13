@@ -1,0 +1,2 @@
+export const CACHE_REDIS_CLIENT = Symbol('CACHE_REDIS_CLIENT');
+export const CACHE_SCAN_BATCH_SIZE = 200;

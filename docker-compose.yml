@@ -1,0 +1,80 @@
+name: merchant-onboarding
+
+x-app-env: &app-env
+  NODE_ENV: production
+  CORS_ORIGINS: ${CORS_ORIGINS:-}
+  TRUST_PROXY: ${TRUST_PROXY:-false}
+  SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+  RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-120}
+  SHUTDOWN_TIMEOUT_MS: ${SHUTDOWN_TIMEOUT_MS:-15000}
+  DB_HOST: postgres
+  DB_PORT: 5432
+  DB_USERNAME: ${DB_USERNAME:?set DB_USERNAME in .env}
+  DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+  DB_NAME: ${DB_NAME:?set DB_NAME in .env}
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  AUTH_PRINCIPAL_CACHE_TTL_SECONDS: ${AUTH_PRINCIPAL_CACHE_TTL_SECONDS:-60}
+  USERS_LIST_CACHE_TTL_SECONDS: ${USERS_LIST_CACHE_TTL_SECONDS:-300}
+  JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+  JWT_EXPIRES_IN_SECONDS: ${JWT_EXPIRES_IN_SECONDS:-900}
+  REFRESH_TOKEN_EXPIRES_IN_SECONDS: ${REFRESH_TOKEN_EXPIRES_IN_SECONDS:-604800}
+  RISK_JOB_ATTEMPTS: ${RISK_JOB_ATTEMPTS:-5}
+  RISK_JOB_BACKOFF_MS: ${RISK_JOB_BACKOFF_MS:-2000}
+  RISK_PROVIDER_LATENCY_MS: ${RISK_PROVIDER_LATENCY_MS:-300}
+  RISK_PROVIDER_FAILURE_RATE: ${RISK_PROVIDER_FAILURE_RATE:-0}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:?set DB_USERNAME in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      POSTGRES_DB: ${DB_NAME:?set DB_NAME in .env}
+    ports:
+      - '${DB_PORT:-5432}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--appendonly', 'yes', '--maxmemory-policy', 'noeviction']
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    profiles: ['app']
+    command: ['sh', '-c', 'npm run migration:run:prod && node dist/main.js']
+    environment:
+      <<: *app-env
+      PORT: 3000
+      RISK_WORKER_ENABLED: 'false'
+    ports:
+      - '${PORT:-3000}:3000'
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  worker:
+    build: .
+    profiles: ['app']
+    command: ['node', 'dist/worker.js']
+    environment:
+      <<: *app-env
+      RISK_WORKER_ENABLED: 'true'
+    depends_on:
+      api: { condition: service_started }
+
+volumes:
+  pgdata:
